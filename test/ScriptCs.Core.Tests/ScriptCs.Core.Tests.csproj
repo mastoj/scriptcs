@@ -75,6 +75,7 @@
     <Compile Include="ScriptPackResolverTests.cs" />
     <Compile Include="ScriptPackSessionTests.cs" />
     <Compile Include="UsingLineProcessorTests.cs" />
+    <Compile Include="VirtualFileSystem.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\ScriptCs.Contracts\ScriptCs.Contracts.csproj">

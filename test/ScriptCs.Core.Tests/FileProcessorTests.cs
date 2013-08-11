@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Common.Logging;
 using Moq;
@@ -486,21 +487,100 @@ namespace ScriptCs.Tests
 
                 var preProcessor = GetFilePreProcessor();
 
-                var result = preProcessor.ProcessFile(@"C:\f1.csx");
+                var result = preProcessor.ProcessFile(@"C:\SubFolder\f1.csx");
 
                 lastCurrentDirectory.ShouldBeSameAs(startingDirectory);
             }
 
-            private IFilePreProcessor GetFilePreProcessor()
+            [Fact]
+            public void ShouldLoadNestedScriptcsRelativeToScriptLocation2()
             {
+                // f1 has usings and then loads
+                var f1 = new List<string>
+                    {
+                        @"#load ""SubFolder\f2.csx"";",
+                        @"#load ""SubFolder\f3.csx"";",
+                        @"using System;",
+                        @"Console.WriteLine(""First line of f1"");"
+                    };
+
+                // f2 has no usings and multiple loads
+                var f2 = new List<string>
+                    {
+                        @"#load ""f3.csx"";",
+                        @"using System;",
+                        @"Console.WriteLine(""First line of f2"");"
+                    };
+
+                // f3 has usings and no loads
+                var f3 = new List<string>
+                    {
+                        @"using System;",
+                        @"Console.WriteLine(""First line of f3"");"
+                    };
+
+                var currentDirectory = "c:\\";
+                _fileSystem.SetupGet(y => y.CurrentDirectory).Returns(() => currentDirectory);
+                _fileSystem.SetupSet(fs => fs.CurrentDirectory = It.IsAny<string>())
+                           .Callback<string>((newCurrentDirectory) =>
+                           {
+                               currentDirectory = newCurrentDirectory;
+                           });
+
+                _fileSystem.Setup(fs => fs.ReadFileLines(@"C:\f1.csx"))
+                    .Returns(f1.ToArray());
+                _fileSystem.Setup(fs => fs.ReadFileLines(@"C:\SubFolder\f2.csx"))
+                    .Returns(f2.ToArray());
+                _fileSystem.Setup(fs => fs.ReadFileLines(@"C:\SubFolder\f3.csx"))
+                    .Returns(f3.ToArray());
+
+                _fileSystem.Setup(fs => fs.GetFullPath(@"C:\f1.csx")).Returns(@"C:\f1.csx");
+                _fileSystem.Setup(fs => fs.GetFullPath(@"SubFolder\f2.csx")).Returns(@"C:\SubFolder\f2.csx");
+                _fileSystem.Setup(fs => fs.GetFullPath(@"f3.csx")).Returns(@"C:\SubFolder\f3.csx");
+                _fileSystem.Setup(fs => fs.GetFullPath(@"SubFolder\f3.csx")).Returns(@"C:\SubFolder\f3.csx");
+
+                _fileSystem.Setup(fs => fs.GetWorkingDirectory(@"C:\f1.csx")).Returns(@"C:\");
+                _fileSystem.Setup(fs => fs.GetWorkingDirectory(@"C:\SubFolder\f2.csx")).Returns(@"C:\SubFolder\");
+                _fileSystem.Setup(fs => fs.GetWorkingDirectory(@"C:\SubFolder\f3.csx")).Returns(@"C:\SubFolder\");
+
+                var preProcessor = GetFilePreProcessor();
+
+                var result = preProcessor.ProcessFile(@"C:\f1.csx");
+
+                _fileSystem.Verify(fs => fs.ReadFileLines(@"C:\f1.csx"), Times.Once());
+                _fileSystem.Verify(fs => fs.ReadFileLines(@"C:\SubFolder\f2.csx"), Times.Once());
+                _fileSystem.Verify(fs => fs.ReadFileLines(@"C:\SubFolder\f3.csx"), Times.Once());
+            }
+
+            [Fact]
+            public void ShouldResetTheCurrentDirectoryWhenLoadingScript2()
+            {
+                // f1 has usings and then loads
+                var f1 = new List<string>
+                    {
+                        @"using System;",
+                        @"Console.WriteLine(""First line of f1"");"
+                    };
+                const string startingDirectory = "c:\\";
+                var fileSystem = new VirtualFileSystem(startingDirectory);
+                fileSystem.AddFile("start\\f1.csx", f1);
+                var preProcessor = GetFilePreProcessor(fileSystem: fileSystem);
+
+                var result = preProcessor.ProcessFile(@"C:\start\f1.csx");
+                fileSystem.CurrentDirectory.ShouldBeSameAs(startingDirectory);
+            }
+
+            private IFilePreProcessor GetFilePreProcessor(IFileSystem fileSystem = null)
+            {
+                fileSystem = fileSystem ?? _fileSystem.Object;
                 var lineProcessors = new ILineProcessor[]
                 {
                     new UsingLineProcessor(),
-                    new ReferenceLineProcessor(_fileSystem.Object),
-                    new LoadLineProcessor(_fileSystem.Object)
+                    new ReferenceLineProcessor(fileSystem),
+                    new LoadLineProcessor(fileSystem)
                 };
 
-                return new FilePreProcessor(_fileSystem.Object, Mock.Of<ILog>(), lineProcessors);
+                return new FilePreProcessor(fileSystem, Mock.Of<ILog>(), lineProcessors);
             }
         }
         
