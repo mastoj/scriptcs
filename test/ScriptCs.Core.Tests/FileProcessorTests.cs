@@ -561,7 +561,7 @@ namespace ScriptCs.Tests
                         @"using System;",
                         @"Console.WriteLine(""First line of f1"");"
                     };
-                const string startingDirectory = "c:\\";
+                const string startingDirectory = "c:";
                 var fileSystem = new VirtualFileSystem(startingDirectory);
                 fileSystem.AddFile("start\\f1.csx", f1);
                 var preProcessor = GetFilePreProcessor(fileSystem: fileSystem);

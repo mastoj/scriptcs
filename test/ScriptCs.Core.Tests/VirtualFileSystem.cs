@@ -86,6 +86,7 @@ namespace ScriptCs.Tests
                 {
                     var directory = GetOrCreateDirectory(pathSegments[0]);
                     directory.AddFile(string.Join("/", pathSegments.Skip(1)), fileLines);
+                    _folders.Add(directory.Name, directory);
                 }
                 else
                 {
@@ -146,6 +147,7 @@ namespace ScriptCs.Tests
                 }
                 if (pathSegments.Count > 1)
                 {
+                    pathSegments = pathSegments[0] == string.Empty ? pathSegments.Skip(1).ToList() : pathSegments;
                     var reminderPath = string.Join(Path.DirectorySeparatorChar.ToString(), pathSegments.Skip(1));
                     if (pathSegments[0] == ".")
                     {
@@ -193,7 +195,17 @@ namespace ScriptCs.Tests
 
         public string[] ReadFileLines(string path)
         {
-            return _rootDirectory.GetFile(path).GetFileLines();
+            VirtualFile virtualFile;
+            if (path.StartsWith(_rootDirectory.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                virtualFile = (VirtualFile) _rootDirectory.GetItem(path.Remove(0, _rootDirectory.Name.Length));
+            }
+            else
+            {
+                virtualFile = (VirtualFile)_currentDirectory.GetItem(path);                
+            }
+
+            return virtualFile.GetFileLines();
         }
 
         public DateTime GetLastWriteTime(string file)
@@ -208,6 +220,10 @@ namespace ScriptCs.Tests
 
         public string GetFullPath(string path)
         {
+            if (path.StartsWith(_rootDirectory.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return _rootDirectory.GetItem(path.Remove(0, _rootDirectory.Name.Length)).GetFullPath();
+            }
             return _currentDirectory.GetItem(path).GetFullPath();
         }
 
@@ -226,7 +242,7 @@ namespace ScriptCs.Tests
         public string NewLine { get; private set; }
         public string GetWorkingDirectory(string path)
         {
-            var file = _currentDirectory.GetFile(path);
+            var file = _rootDirectory.GetFile(GetFullPath(path));// _currentDirectory.GetFile(path);
             var workingDirectory = file.GetParentDirectory();
             return workingDirectory.GetFullPath();
         }
