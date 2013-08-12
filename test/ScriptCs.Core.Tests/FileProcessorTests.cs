@@ -519,37 +519,15 @@ namespace ScriptCs.Tests
                         @"Console.WriteLine(""First line of f3"");"
                     };
 
-                var currentDirectory = "c:\\";
-                _fileSystem.SetupGet(y => y.CurrentDirectory).Returns(() => currentDirectory);
-                _fileSystem.SetupSet(fs => fs.CurrentDirectory = It.IsAny<string>())
-                           .Callback<string>((newCurrentDirectory) =>
-                           {
-                               currentDirectory = newCurrentDirectory;
-                           });
+                const string startingDirectory = "c:";
+                var fileSystem = new VirtualFileSystem(startingDirectory);
+                fileSystem.AddFile("f1.csx", f1);
+                fileSystem.AddFile(@"SubFolder\f2.csx", f2);
+                fileSystem.AddFile(@"SubFolder\f3.csx", f3);
 
-                _fileSystem.Setup(fs => fs.ReadFileLines(@"C:\f1.csx"))
-                    .Returns(f1.ToArray());
-                _fileSystem.Setup(fs => fs.ReadFileLines(@"C:\SubFolder\f2.csx"))
-                    .Returns(f2.ToArray());
-                _fileSystem.Setup(fs => fs.ReadFileLines(@"C:\SubFolder\f3.csx"))
-                    .Returns(f3.ToArray());
-
-                _fileSystem.Setup(fs => fs.GetFullPath(@"C:\f1.csx")).Returns(@"C:\f1.csx");
-                _fileSystem.Setup(fs => fs.GetFullPath(@"SubFolder\f2.csx")).Returns(@"C:\SubFolder\f2.csx");
-                _fileSystem.Setup(fs => fs.GetFullPath(@"f3.csx")).Returns(@"C:\SubFolder\f3.csx");
-                _fileSystem.Setup(fs => fs.GetFullPath(@"SubFolder\f3.csx")).Returns(@"C:\SubFolder\f3.csx");
-
-                _fileSystem.Setup(fs => fs.GetWorkingDirectory(@"C:\f1.csx")).Returns(@"C:\");
-                _fileSystem.Setup(fs => fs.GetWorkingDirectory(@"C:\SubFolder\f2.csx")).Returns(@"C:\SubFolder\");
-                _fileSystem.Setup(fs => fs.GetWorkingDirectory(@"C:\SubFolder\f3.csx")).Returns(@"C:\SubFolder\");
-
-                var preProcessor = GetFilePreProcessor();
+                var preProcessor = GetFilePreProcessor(fileSystem);
 
                 var result = preProcessor.ProcessFile(@"C:\f1.csx");
-
-                _fileSystem.Verify(fs => fs.ReadFileLines(@"C:\f1.csx"), Times.Once());
-                _fileSystem.Verify(fs => fs.ReadFileLines(@"C:\SubFolder\f2.csx"), Times.Once());
-                _fileSystem.Verify(fs => fs.ReadFileLines(@"C:\SubFolder\f3.csx"), Times.Once());
             }
 
             [Fact]

@@ -86,7 +86,6 @@ namespace ScriptCs.Tests
                 {
                     var directory = GetOrCreateDirectory(pathSegments[0]);
                     directory.AddFile(string.Join("/", pathSegments.Skip(1)), fileLines);
-                    _folders.Add(directory.Name, directory);
                 }
                 else
                 {
@@ -100,6 +99,7 @@ namespace ScriptCs.Tests
                 if (directory == null)
                 {
                     directory = AddFolder(directoryName);
+                    _folders.Add(directory.Name, directory);
                 }
                 return directory;
             }
