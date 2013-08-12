@@ -30,8 +30,8 @@ namespace ScriptCs.Tests
                 Name = name;
             }
             public string Name { get; private set; }
-            protected bool IsFolder { get; private set; }
-            protected bool IsFile { get { return !IsFolder; } }
+            public bool IsFolder { get; private set; }
+            public bool IsFile { get { return !IsFolder; } }
             protected VirtualDirectory ParentDirectory { get; private set;}
 
             public string GetFullPath()
@@ -44,6 +44,11 @@ namespace ScriptCs.Tests
                 {
                     return ParentDirectory.GetFullPath() + "\\" + Name;
                 }
+            }
+
+            public VirtualDirectory GetParentDirectory()
+            {
+                return ParentDirectory;
             }
         }
 
@@ -60,11 +65,6 @@ namespace ScriptCs.Tests
             public string[] GetFileLines()
             {
                 return FileLines.ToArray();
-            }
-
-            public VirtualDirectory GetParentDirectory()
-            {
-                return ParentDirectory;
             }
         }
 
@@ -141,13 +141,13 @@ namespace ScriptCs.Tests
             public VirtualItem GetItem(string path)
             {
                 var pathSegments = SplitToSegments(path);
+                pathSegments = pathSegments[0] == string.Empty ? pathSegments.Skip(1).ToList() : pathSegments;
                 if (pathSegments.Count == 1)
                 {
                     return Items.First(y => y.Name == pathSegments[0]);
                 }
                 if (pathSegments.Count > 1)
                 {
-                    pathSegments = pathSegments[0] == string.Empty ? pathSegments.Skip(1).ToList() : pathSegments;
                     var reminderPath = string.Join(Path.DirectorySeparatorChar.ToString(), pathSegments.Skip(1));
                     if (pathSegments[0] == ".")
                     {
@@ -220,11 +220,20 @@ namespace ScriptCs.Tests
 
         public string GetFullPath(string path)
         {
+            return GetItem(path).GetFullPath();
+        }
+
+        private VirtualItem GetItem(string path)
+        {
+            if (path.Equals(_rootDirectory.Name, StringComparison.InvariantCultureIgnoreCase))
+            {
+                return _rootDirectory;
+            }
             if (path.StartsWith(_rootDirectory.Name, StringComparison.OrdinalIgnoreCase))
             {
-                return _rootDirectory.GetItem(path.Remove(0, _rootDirectory.Name.Length)).GetFullPath();
+                return _rootDirectory.GetItem(path.Remove(0, _rootDirectory.Name.Length));
             }
-            return _currentDirectory.GetItem(path).GetFullPath();
+            return _currentDirectory.GetItem(path);
         }
 
         public string CurrentDirectory
@@ -235,16 +244,20 @@ namespace ScriptCs.Tests
             }
             set
             {
-                _currentDirectory = (VirtualDirectory)_currentDirectory.GetItem(value);
+                var directory = (VirtualDirectory)GetItem(value);
+                _currentDirectory = directory;
 
             }
         }
         public string NewLine { get; private set; }
         public string GetWorkingDirectory(string path)
         {
-            var file = _rootDirectory.GetFile(GetFullPath(path));// _currentDirectory.GetFile(path);
-            var workingDirectory = file.GetParentDirectory();
-            return workingDirectory.GetFullPath();
+            var item = GetItem(path);
+            if (item.IsFile)
+            {
+                item = item.GetParentDirectory();
+            }
+            return item.GetFullPath();
         }
 
         public void Move(string source, string dest)
